@@ -3,10 +3,15 @@ import pandas as pd
 from sqlalchemy import create_engine, text,TEXT,VARCHAR,DECIMAL,INT, MetaData, Table, Column, String,Integer
 from sqlalchemy.types import DECIMAL
 
+host = os.getenv("DB_HOST")  # 第二个参数为默认值
+user = os.getenv("DB_USER")
+password = os.getenv("DB_PASSWORD")
+database = os.getenv("DB_NAME")
+port = int(os.getenv("DB_PORT")) 
 
 class create_table():
     def business(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         metadata = MetaData()
         business = Table('business', metadata,
                          Column('公司', String(100)),
@@ -78,7 +83,7 @@ class create_table():
         # 使用engine创建表
         metadata.create_all(engine)
     def revenue_old(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         metadata = MetaData()
         revenue_old = Table('revenue_old', metadata,
                             Column('序号', Integer),  # Corresponds to SQL INT
@@ -112,7 +117,7 @@ class tosql():
     from sqlalchemy import create_engine, String, TEXT
     import pandas as pd
     import os
-    engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
     def address_change(self,car,business,revenue):
         car_address = fr"{car}"
         business = fr"{business}"
@@ -120,7 +125,7 @@ class tosql():
         return [car_address,business,revenue]
 
     def car_tosql(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         folder_path = r'E:\\MK\\数据源\\车辆确认'  # 使用双反斜线或原始字符串
         for file_name in os.listdir(folder_path):
             if file_name.endswith('.xls') or file_name.endswith('.xlsx'):
@@ -187,14 +192,14 @@ class tosql():
                 })
                 print(f'{file_name} has been imported into table car.')
     def drop(self,table):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         with engine.connect() as connection:
             sql_command = text(f"DROP TABLE IF EXISTS `{table}`;")
             connection.execute(sql_command)
             print(f"表 `{table}` 已被删除。")
 
     def drop_all(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         tables = pd.read_sql("SHOW TABLES;", engine)
         table_names = tables.iloc[:, 0]  # 假定表名在第一列
         for table_name in table_names:
@@ -304,7 +309,7 @@ class tosql():
         print("All files have been imported.")
 
     def business_tosql(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         folder_path = r'E:\\MK\\数据源\\业务开发'
         for filename in os.listdir(folder_path):
             if filename.endswith('.xlsx') or filename.endswith('.xls'):
@@ -385,7 +390,7 @@ class tosql():
         print("All files have been imported.")
 
     def examine_tosql(self):
-       engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+       engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
        folder_path = r'E:\\MK\\数据源\\运费考核明细'
 
        for root, dirs, files in os.walk(folder_path):
@@ -478,7 +483,7 @@ class tosql():
                        print(f"Error reading {file_path}: {e}")
 
     def g7_tosql(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         folder_path = r'E:\MK\数据源\平台\G7\订单'
 
         for filename in os.listdir(folder_path):
@@ -596,7 +601,7 @@ class tosql():
         print("All files have been imported.")
 
     def lyt_tosql(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         folder_path = r'E:\MK\数据源\平台\陆运通'
 
         for filename in os.listdir(folder_path):
@@ -674,7 +679,7 @@ class tosql():
 
 
     def g7_paid_tosql(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         folder_path = r'E:\MK\数据源\平台\G7-已付'
 
         for filename in os.listdir(folder_path):
@@ -687,7 +692,7 @@ class tosql():
         print("All files have been imported.")
 
     def myb_tosql(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         folder_path = r'E:\MK\数据源\平台\满运宝'
 
         for filename in os.listdir(folder_path):
@@ -773,7 +778,7 @@ class tosql():
     #     print(f"Files has been imported successfully.")
 
     def fee_tosql(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         folder_path = r'E:\\MK\数据源\运费管理'
         for filename in os.listdir(folder_path):
             if filename.endswith('.xlsx') or filename.endswith('.xls'):
@@ -821,7 +826,7 @@ class tosql():
         print("All files have been imported.")
 
     def delivery_tosql(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         folder_path = r'E:\\MK\数据源\发运单管理'
         for filename in os.listdir(folder_path):
             if filename.endswith('.xlsx') or filename.endswith('.xls'):
@@ -879,7 +884,7 @@ class tosql():
         print("All files have been imported.")
 
     def inventory(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         df_exam = pd.read_sql('SELECT 发运单号,类别名称,总重量 FROM examine',con=engine)
         df_revenue = pd.read_sql('SELECT 发运单号,业务类型,公司,车型,业务日期 FROM revenue',con=engine)
         df_revenue['业务日期'] = pd.to_datetime(df_revenue['业务日期'],format='%Y%m%d')
@@ -907,7 +912,7 @@ class tosql():
         return df_agg
 
     def to_sql_order_manage(self):
-        engine = create_engine('mysql+pymysql://root:xiannan@localhost:3306/ccd')
+        engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
         path = fr"E:\MK\数据源\发运单管理"
         for filename in os.listdir(path):
             if filename.endswith('xls') or filename.endswith('xlsx'):

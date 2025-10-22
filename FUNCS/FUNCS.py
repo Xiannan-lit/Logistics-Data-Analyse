@@ -228,7 +228,7 @@ def car_revnue():
     return df_merge
 
 def car_revnue_tax():
-    engine = engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
     df_car = pd.read_sql('SELECT 发运单号, 省, 市, 县区, 结算点, 距离, 运输费用, 实际运费, 油卡费用, 成本总金额, 指导价, 承担运费类型, 承担运费, 线路名称, 调度员, 卸货点数, 简要地址 FROM car',con=engine)
     data_astype(df_car,['运输费用','油卡费用','承担运费','成本总金额'],float)
     df_car['发运单号'] = df_car['发运单号'].str.replace('-1','')
