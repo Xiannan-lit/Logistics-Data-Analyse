@@ -1,12 +1,12 @@
 import concurrent.futures
-from sqlalchemy import create_engine,  text
+from sqlalchemy import create_engine, text
 import pandas as pd
+import GD
 import numpy as np
 import threading
 import os
 from openai import OpenAI
 import FUNCS.DATA_PROCESS as DP
-import GD
 
 
 user = os.getenv("DB_USER")  # 无默认值，不存在时返回 None
@@ -14,15 +14,15 @@ host = os.getenv("DB_HOST")  # 有默认值，不存在时返回 "localhost"
 port = os.getenv("DB_PORT")
 password = os.getenv("DB_PASSWORD")
 name = os.getenv("DB_NAME")
-database = os.getnv("DB_DATABASE")
+qwen_key = os.getenv("QWEN_KEY")
 
 
 def qwen(question):
     client = OpenAI(
         # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
-        api_key="skXXX",
+        api_key=qwen_key,
         # 如何获取API Key：https://help.aliyun.com/zh/model-studio/developer-reference/get-api-key
-        base_url="XXX"
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
 
     completion = client.chat.completions.create(
@@ -36,39 +36,15 @@ def qwen(question):
     return completion.choices[0].message.content
 
 
-# def data_select():
-#     engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
-#     df_merge = pd.read_sql(
-#         '''
-#         SELECT  b.point
-#         FROM revenue_address ra
-#         RIGHT JOIN (
-#             SELECT CONCAT(发货地点, 到货地点) AS point
-#             FROM business
-#         ) b ON ra.point = b.point
-#         where point_standard is null
-#         ;
-#
-#         ''', con=engine
-#     )
-#     print('查询完成')
-#     return df_merge
-
-
 def data_select():
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df_merge = pd.read_sql(
         '''
-        SELECT 发货地点 AS point
+        SELECT point
         FROM business 
-        WHERE 日期 LIKE "202509%%"
         UNION
-        SELECT 到货地址  AS point
+        SELECT point
         FROM car
-        UNION
-        SELECT CONCAT(省, 市, 县区) AS point
-        FROM car
-        WHERE 日期 LIKE "202509%%"
         ;
         ''', con=engine
     )
@@ -76,8 +52,6 @@ def data_select():
     df_merge = df_merge[~df_merge['point'].isnull()]
     df_merge['point'] = df_merge['point'].str.replace(' ', '')
     df_merge['point'] = df_merge['point'].apply(DP.full_to_half)
-    df_point_cleaned = pd.read_sql('SELECT point FROM revenue_address', con=engine)
-    df_merge = df_merge[~df_merge['point'].isin(df_point_cleaned['point'])]
     df_merge = df_merge.drop_duplicates()
     print('清洗成功')
     df_merge['point_（'] = df_merge['point'].str.split('（', n=1).str[1]
@@ -93,20 +67,14 @@ def data_select():
 
 
 def data_select_ai():
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df_merge = pd.read_sql(
         '''
-        SELECT 发货地点 AS point
-        FROM business
-        WHERE 发货地点 NOT IN (SELECT point FROM revenue_address)
+        SELECT point
+        FROM business 
         UNION
-        SELECT 到货地址  AS point
+        SELECT point
         FROM car
-        WHERE 到货地址 NOT IN (SELECT point FROM revenue_address)
-        UNION
-        SELECT CONCAT(省, 市, 县区) AS point
-        FROM car
-        WHERE CONCAT(省, 市, 县区) NOT IN (SELECT point FROM revenue_address)
         ;
         ''', con=engine
     )
@@ -116,12 +84,12 @@ def data_select_ai():
 
 
 def data_select_2():
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df_merge = pd.read_sql(
         '''
-            SELECT 发货地点 AS point FROM revenue_old
+            SELECT start AS point FROM revenue_old
             UNION
-            SELECT 到货地点 FROM revenue_old
+            SELECT end FROM revenue_old
 
         ''', con=engine
     )
@@ -134,27 +102,11 @@ def data_select_manual(path):
     return df
 
 
-def product_start():
-    point = {'point': [('广东省,茂名市,高州市'),
-                       ('福建省,漳州市,漳浦县'),
-                       ('吉林省,长春市,九台区'),
-                       ('新疆维吾尔自治区,乌鲁木齐市,沙依巴克区'),
-                       ('四川省,成都市,龙泉驿区'),
-                       ('天津市,天津市,滨海新区'),
-                       ('湖南省,长沙市,宁乡市'),
-                       ('安徽省,六安市,金安区'),
-                       ('浙江省,杭州市,钱塘区'),
-                       ('陕西省,西安市,雁塔区'),
-                       ('浙江省,绍兴市,新昌县'),
-                       ('浙江省,衢州市,衢江区')]}
-    point = pd.DataFrame(point)
-    return point
-
 
 def coordination_point_num_no(df):
     df = df.fillna('/')
     db_lock = threading.Lock()
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df[['point_standard', 'coordination']] = df.apply(
         lambda x: GD.gaode().coordination_point(GD.gaode().geo_data(x['point_num_no'])), axis=1
     )
@@ -180,8 +132,9 @@ def Thread_to_sql_num_no(data):
 
 def coordination_point_clean(df, column):
     df = df.fillna('/')
+    df = df.drop_duplicates()
     db_lock = threading.Lock()
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df[['point_standard', 'coordination']] = df.apply(
         lambda x: GD.gaode().coordination_point(GD.gaode().geo_data(x[f'{column}'])), axis=1
     )
@@ -220,7 +173,7 @@ def Thread_to_sql_ai(data, column):
 def coordination_point_slash(df):
     df = df.fillna('/')
     db_lock = threading.Lock()
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df[['point_standard', 'coordination']] = df.apply(
         lambda x: GD.gaode().coordination_point(GD.gaode().geo_data(x['point_slash'])), axis=1
     )
@@ -247,7 +200,7 @@ def Thread_to_sql_slash(data):
 def coordination_point_slash_num_no(df):
     df = df.fillna('/')
     db_lock = threading.Lock()
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df[['point_standard', 'coordination']] = df.apply(
         lambda x: GD.gaode().coordination_point(GD.gaode().geo_data(x['point_slash_num_no'])), axis=1
     )
@@ -274,7 +227,7 @@ def Thread_to_sql_slash_num_no(data):
 def coordination_point_space_num_no(df):
     df = df.fillna('/')
     db_lock = threading.Lock()
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df[['point_standard', 'coordination']] = df.apply(
         lambda x: GD.gaode().coordination_point(GD.gaode().geo_data(x['point_space_num_no'])), axis=1
     )
@@ -301,7 +254,7 @@ def Thread_to_sql_space_num_no(data):
 def coordination_point_slash_space_num_no(df):
     df = df.fillna('/')
     db_lock = threading.Lock()
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df[['point_standard', 'coordination']] = df.apply(
         lambda x: GD.gaode().coordination_point(GD.gaode().geo_data(x['point_slash_space_num_no'])), axis=1
     )
@@ -326,7 +279,7 @@ def Thread_to_sql_slash_space_num_no(data):
 
 
 def deleto():
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
 
     with engine.connect() as connection:
         delete_query = text("""
@@ -355,9 +308,9 @@ def deleto():
         print(f"Deleted duplicate rows based on point: {result.rowcount}")
 
 
-def address_manual():
-    df_address = pd.read_excel(r'E:\MK\数据源\地址高德\新建 XLSX 工作表.xlsx')
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
+def address_manual(path):
+    df_address = pd.read_excel(path)
+    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     with engine.connect() as connection:
         connection.execute(text('DELETE FROM revenue_address_no_gis'))
         connection.commit()
@@ -409,11 +362,8 @@ def address_problem_delete(path):
         print(f"操作出错: {str(e)}")
 
 
-def all_to_half():
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{database}')
-    df_address = pd.read_sql('SELECT * FROM revenue_address', con=engine)
+def all_to_half(df_address):
     df_address['point'] = df_address['point'].apply(DP.full_to_half)
-    df_address.to_excel(r'e:/1.xlsx')
     print(df_address['point'])
 
 

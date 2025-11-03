@@ -351,13 +351,6 @@ def find_closest_date(orders_df, price_adjustments_df):
     return pd.DataFrame(closest_dates)
 
 
-def guanxing(guan,zong):
-    if guan == zong:
-        return '纯管道'
-    elif guan == 0:
-        return '纯型材'
-    else:
-        return '管型'
 
 def plate_number(driver_info):
     parts = driver_info.split('/')
@@ -497,27 +490,3 @@ def cost_year(df_merge,year,car):
     df_agg['采购均价'] = df_agg['采购均价'].round(0)
     df_agg.rename(columns={'采购均价':f'{year}_{car}采购价','总车次':f'{year}_{car}车次','总成本':f'{year}_{car}总成本'},inplace=True)
     return df_agg
-
-def start(df):
-    base_address = {'广东营业部': ('Y2', '广东省,茂名市,高州市'),
-                    '福建营业部': ('M2', '福建省,漳州市,漳浦县'),
-                    '吉林营业部': ('L2', '吉林省,长春市,九台区'),
-                    '新疆营业部': ('J2', '新疆维吾尔自治区,乌鲁木齐市,沙依巴克区'),
-                    '四川营业部': ('D2', '四川省,成都市,龙泉驿区'),
-                    '天津营业部': ('T2', '天津市,天津市,滨海新区'),
-                    '湖南营业部': ('H2', '湖南省,长沙市,宁乡市'),
-                    '六安营业部': ('W2', '安徽省,六安市,金安区'),
-                    '下沙营业部': ('S2', '浙江省,杭州市,钱塘区'),
-                    '西安营业部': ('A2', '陕西省,西安市,雁塔区'),
-                    '新昌营业部': ('C2', '浙江省,绍兴市,新昌县'),
-                    '衢州营业部': ('Q2', '浙江省,衢州市,衢江区'),
-                    '河南河财管道有限公司':('HH', '河南省,郑州市,管城回族区')
-                    }
-    # df['首字母'] = df['发运单号'].str[0]
-    for i in base_address.keys():
-        df.loc[(df['公司'] == i)  & (df['业务类型'] == '产品发货整车业务') & (
-            df['发货地点']=='/'), '发货地点'] = base_address[i][2]
-        # df.loc[(df['公司'] == i) & (df['首字母']==base_address[i][0])&(df['业务类型']=='产品发货整车业务')&(df['发货地点'].isnull()), '发货地点'] = base_address[i][1]
-        df.loc[df['发货地点'].str.contains('下沙基地'),'发货地点'] ='浙江省杭州市钱塘区下沙'
-        df.loc[df['到货地点'].str.contains('下沙基地'), '到货地点'] = '浙江省杭州市钱塘区下沙'
-    return df

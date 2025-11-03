@@ -1,10 +1,13 @@
 import pandas as pd
 import requests
+import os
+
 
 class gaode():
+    gd_key = os.getenv("GD_KEY")
     def geo_data(self, address):
-        gaode_key = 'XXX'
-        url = f'https://restapi.amap.com/v3/geocode/geo?address={address}&key={gaode_key}'
+        #综合地理数据V3
+        url = f'https://restapi.amap.com/v3/geocode/geo?address={address}&key={self.gd_key}'
         response = requests.get(url)
         data = response.json()
         if data['status'] == '1':
@@ -16,8 +19,8 @@ class gaode():
             return '未获取到相关路径'
 
     def geo_data_standard(self, coordinate):
-        gaode_key = 'XXX'
-        url = f'https://restapi.amap.com/v4/geocode/geo?location={coordinate}&key={gaode_key}'
+        #综合地理数据V4
+        url = f'https://restapi.amap.com/v4/geocode/geo?location={coordinate}&key={self.gd_key}'
         response = requests.get(url)
         data = response.json()
         if data:
@@ -28,7 +31,7 @@ class gaode():
             return '未获取到相关路径'
 
     def coordination_point(self,GDdata_geo):
-        import pandas as pd
+        #坐标获取
         if GDdata_geo and 'geocodes' in GDdata_geo and GDdata_geo['geocodes']:
             data_la_lo = GDdata_geo['geocodes'][0]['location']
             geocode = GDdata_geo['geocodes'][0]
@@ -44,8 +47,8 @@ class gaode():
             return pd.Series(['未获取到相关路径', '未获取到坐标'], index=['point_standard', 'coordination'])
 
     def routine_truck(self,origin_coordinate,end_coordinate):
-        gaode_key = 'XXX'
-        url = f'https://restapi.amap.com/v4/direction/truck?origin={origin_coordinate}&destination={end_coordinate}&strategy=1&key={gaode_key}'
+        #卡车路径获取
+        url = f'https://restapi.amap.com/v4/direction/truck?origin={origin_coordinate}&destination={end_coordinate}&strategy=1&key={self.gd_key}'
         response = requests.get(url)
         data = response.json()
         if data:
@@ -56,8 +59,8 @@ class gaode():
             return '未获取到相关路径'
 
     def routine_car(self,origin_coordinate,end_coordinate):
-        gaode_key = 'XXX'
-        url = f'https://restapi.amap.com/v3/direction/driving?origin={origin_coordinate}&destination={end_coordinate}&strategy=1&key={gaode_key}'
+        #路径获取
+        url = f'https://restapi.amap.com/v3/direction/driving?origin={origin_coordinate}&destination={end_coordinate}&strategy=1&key={self.gd_key}'
         response = requests.get(url)
         data = response.json()
         if data['status'] == '1':
@@ -71,6 +74,7 @@ class gaode():
 
 
     def toll(self, GDdata_routine):
+        #测距
         if GDdata_routine and 'route' in GDdata_routine and GDdata_routine['route'] and 'paths' in GDdata_routine[
             'route']:
             # Extract paths, since it's a list, we access the first path
@@ -94,6 +98,7 @@ class gaode():
 
 
     def standard(self, GDdata_geo):
+        #地址标准化
         if GDdata_geo and 'geocodes' in GDdata_geo and GDdata_geo['geocodes']:
             # 获取 geocodes 中的第一个地址信息
             geocode = GDdata_geo['geocodes'][0]
@@ -110,6 +115,7 @@ class gaode():
             return '未获取到相关路径'
 
     def distance_duration(self,data):
+        #耗时测算
         if data and data['status']=='1':
             route = data['route']['paths'][0]
             distance = route.get('distance','')
