@@ -1,4 +1,3 @@
-
 import pandas as pd
 import numpy as np
 from sqlalchemy import create_engine
@@ -7,21 +6,26 @@ import FUNCS.FUNCS as FK
 import FUNCS.DATA_PROCESS as DP
 import os
 
-BOUNDS = {
-    'min_lon': 73.5,
-    'max_lon': 135.0,
-    'min_lat': 18.0,
-    'max_lat': 53.5
-}
-GRID_SIZE = 1 
-MAX_DISTANCE_KM = 50
-
 user = os.getenv("DB_USER")
 host = os.getenv("DB_HOST")
 port = os.getenv("DB_PORT")
 password = os.getenv("DB_PASSWORD")
 name = os.getenv("DB_NAME")
 
+
+BOUNDS = {
+    'min_lon': 73.5,
+    'max_lon': 135.0,
+    'min_lat': 18.0,
+    'max_lat': 53.5
+}
+GRID_SIZE = 1 # 10x10=100个网格
+MAX_DISTANCE_KM = 50
+
+
+# --------------------------
+# 核心功能实现
+# --------------------------
 
 def haversine_vectorized(df):
     """向量化Haversine距离计算"""
@@ -101,6 +105,12 @@ def find_nearby_pairs(df):
 
     return result[['id_a', 'id_b', 'distance']]
 
+
+# --------------------------
+# 使用示例
+# --------------------------
+
+# 生成测试数据
 data = {
     'id': range(1, 12),
     'lon': [116.4074,116.4074, 121.4737, 113.2644, 114.3055, 108.9386,
@@ -110,47 +120,76 @@ data = {
 }
 
 def data_select(year,months):
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
+    from sqlalchemy import create_engine
+    engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df_point = pd.read_sql('SELECT id, point, point_standard, longitude, latitude FROM revenue_address',con=engine)
     df_x_y = pd.read_sql(f'SELECT 发运单号, 发货地点, 到货地点, 公司, 业务类型, 业务日期 FROM revenue_old WHERE 业务日期 LIKE "%%{year}%%"',con=engine).drop_duplicates()
     df_car = pd.read_sql(f'SELECT 发运单号, 省, 市, 县区 FROM car WHERE 日期 LIKE "%%{year}%%"',con=engine)
     df_car['省市县'] = df_car['省'] + df_car['市'] + df_car['县区']
-    df_x_y = pd.merge(df_x_y,df_car,on='发运单号')
-    print('ffff')
-    print(df_x_y[df_x_y['到货地点'].str.contains('浙江省杭州市江干区')])
+    df_x_y = pd.merge(df_x_y,df_car,on='发运单号',how='left')
     df_x_y['业务日期'] = pd.to_datetime(df_x_y['业务日期'],format='%Y%m%d')
     df_x_y = df_x_y[df_x_y['业务日期'].dt.month.isin(months)]
-    df_x_y['point_match'] = df_x_y.apply(lambda x: DP.point_match(x['省'], x['省市县'], x['到货地点']), axis=1)
+    # df_x_y = df_x_y[df_x_y['业务日期'].dt.day.isin([1,2,3,4,5,6,7])]
+    print('数据行数：')
+    print(df_x_y.shape[0])
+    # df_x_y['point_match'] = df_x_y.apply(lambda x: DP.point_match(x['省'], x['省市县'], x['到货地点']), axis=1)
     df_x_y = pd.merge(df_x_y, df_point, left_on='发货地点', right_on='point', how='left')
-    df_x_y = pd.merge(df_x_y, df_point, left_on='point_match', right_on='point', how='left')
+    df_x_y = pd.merge(df_x_y, df_point, left_on='到货地点', right_on='point', how='left')
     df_start = df_x_y[['发货地点']].drop_duplicates()
-    df_end = df_x_y[['point_match']].drop_duplicates()
+    df_end = df_x_y[['到货地点']].drop_duplicates()
     df_start = df_start.rename(columns={'发货地点': 'point'})
-    df_end = df_end.rename(columns={'point_match': 'point'})
+    df_end = df_end.rename(columns={'到货地点': 'point'})
     df_point_transported = pd.concat([df_start, df_end], ignore_index=True)
     df_point = df_point[df_point['point'].isin(df_point_transported['point'])]
+    df_point = df_point[df_point['latitude']!='/']
     df_point['latitude'] = df_point['latitude'].astype(float)
     df_point['longitude'] = df_point['longitude'].astype(float)
-    print(df_point[df_point['point'].str.contains('浙江省杭州市江干区')])
     print(df_point.columns)
+    print('地址数量:')
+    print(df_point.shape[0])
     return df_point
 
+def haversine_all(df):
+    1
 
 def calculate(df):
     df_address = df
-    df_address_nodup = df.drop_duplicates(['point'])
+    # df_address = df_address[df_address['point'].str.contains('钱塘')|df_address['point'].str.contains('下沙')]
+    # df_address = df_address[(df_address['id']==3428)|(df_address['id']==47939)]
+    # df_address = df_address[0:100000]
+    # df = df.drop_duplicates(['latitude','longitude'])
+    df_address_nodup = df_address.drop_duplicates(['point'])
+    # df_address_nodup = df_address.drop_duplicates(['latitude', 'longitude'])
     print(df_address_nodup.columns)
     # 执行查询
     result = find_nearby_pairs(df_address_nodup)
     print(result.columns)
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
+    engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
+
+    # df_merge = pd.merge(result,df,left_on='id_a',right_on='id',how='left')
+    # df_merge = pd.merge(df_merge, df, left_on='id_b', right_on='id', how='left')
     s.tosql().drop_s(['near','near_latlon'])
+    # df['neighbors'] = df['neighbors'].astype(str)
+    # df_address = df_address[['id','latitude','longitude']]
+    # merge = pd.merge(df_address,result,left_on='id',right_on='id_a',how='right')
+    # merge = pd.merge(merge, result, left_on='id', right_on='id_b', how='right')
+    # merge_2 = pd.merge(df_address,merge,on=['latitude','longitude'],how='left')
+    # merge_2.to_sql('near1',con=engine,if_exists='append')
     print(result)
     print(df_address_nodup)
     df_address_nodup = df_address.drop_duplicates(['latitude', 'longitude'])
     print(df_address_nodup)
     result = pd.merge(result,df_address_nodup,left_on='id_a',right_on='id',how='left')
     result = pd.merge(result, df_address_nodup, left_on='id_b', right_on='id', how='left')
+    # metadata = MetaData()
+    # locations = Table('near_latlon', metadata, autoload_with=engine)
+    # # 反射表结构（如果事先不知道表结构）
+    # metadata.reflect(bind=engine)
+    # delete_stmt = locations.delete()
+    # # 执行删除操作
+    # with engine.connect() as connection:
+    #     result = connection.execute(delete_stmt)
+    #     print(f"已删除 {result.rowcount} 条记录")
     result.to_sql('near_latlon',con=engine,if_exists='append')
     print(result.columns)
     # 结果展示
@@ -158,7 +197,7 @@ def calculate(df):
     print(result.head())
 
 def data_merge():
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
+    engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     df_point = pd.read_sql('SELECT point, point_standard, longitude, latitude FROM revenue_address limit 10000',
                            con=engine)
     df_near = pd.read_sql('SELECT * FROM near',con=engine)
@@ -180,9 +219,14 @@ def haversine(lon1, lat1, lon2, lat2):
 def generate_point_pairs(df, MAX_DISTANCE_KM=50):
     """
     生成两点关系DataFrame，包含所有距离<=MAX_DISTANCE_KM的点对
+
+    返回字段：
+    Index(['id_a', 'id_b', 'distance',
+           'id_x', 'point_x', 'point_standard_x', 'longitude_x', 'latitude_x',
+           'id_y', 'point_y', 'point_standard_y', 'longitude_y', 'latitude_y'])
     """
     # 创建空列表存储结果
-    engine = create_engine(F'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
+    engine = create_engine(f'mysql+pymysql://{user}:{password}@{host}:{port}/{name}')
     results = []
 
     # 获取所有点ID列表
@@ -223,12 +267,17 @@ def generate_point_pairs(df, MAX_DISTANCE_KM=50):
 
     # 转换为DataFrame
     result_df = pd.DataFrame(results)
+
+    # 确保字段顺序一致
     column_order = [
         'id_a', 'id_b', 'distance',
         'id_x', 'point_x', 'point_standard_x', 'longitude_x', 'latitude_x',
         'id_y', 'point_y', 'point_standard_y', 'longitude_y', 'latitude_y'
     ]
+    s.tosql().drop_s(['near_latlon'])
     result_df.to_sql('near_latlon', con=engine, if_exists='append')
 
+    return df
 
-print(generate_point_pairs(data_select(2025,[6])))
+
+print(generate_point_pairs(data_select(2025,[9])))

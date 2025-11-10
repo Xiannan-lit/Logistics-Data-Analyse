@@ -490,3 +490,4 @@ def cost_year(df_merge,year,car):
     df_agg['采购均价'] = df_agg['采购均价'].round(0)
     df_agg.rename(columns={'采购均价':f'{year}_{car}采购价','总车次':f'{year}_{car}车次','总成本':f'{year}_{car}总成本'},inplace=True)
     return df_agg
+
