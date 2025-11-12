@@ -1,2 +1,1 @@
-Situation:web-based logitics,which needs much data to assess the price,relationship of address.The algorithm makes logistics efficient,as longitude and latitude  data in.
-Base case:longitude and latitude data,which can get from map api like GaoDe.
+网货平台物流回程车算法，方便设计线路价格、统筹发运计划，提高计划连续性，降低成本
